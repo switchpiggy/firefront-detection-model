@@ -2,6 +2,7 @@ import os
 from PIL import ImageOps
 import tensorflow as tf
 from keras.utils import load_img
+import numpy as np
 
 INPUT_DIR = "fire-detection-data/GRAFFITI-dataset/Level_I"
 LABEL_DIR = "fire-detection-data/NIR-labelled-data/NIRlabeling"
@@ -26,20 +27,24 @@ def get_paths(input_dir, label_dir):
 
     #display all image paths
     all_image_paths = label_img_paths + input_img_paths
-    for path in all_image_paths: 
-        print("Loaded image path: {}".format(path))
+    # for path in all_image_paths: 
+        # print("Loaded image path: {}".format(path))
     
     return input_img_paths, label_img_paths
 
 #parses filenames and returns images
 def _parse_function(input_fn, label_fn):
-    image_string = tf.read_file(input_fn)
+    image_string = tf.io.read_file(input_fn)
     image_decoded = tf.image.decode_png(image_string, channels=3)
+    image_decoded.set_shape([None, None, 3])
+    image_decoded = tf.image.resize(images=image_decoded, size=[1088, 1920])
     image = tf.cast(image_decoded, tf.float32)
 
-    label_string = tf.read_file(label_fn)
-    label_decoded = tf.image.decode_png(label_string, channels=3)
-    label = tf.cast(label_decoded, tf.float32)
+    label_string = tf.io.read_file(label_fn)
+    label_decoded = tf.image.decode_png(label_string, channels=1)
+    label_decoded.set_shape([None, None, 1])
+    label_decoded = tf.image.resize(images=label_decoded, size=[1088, 1920])
+    label = tf.cast(label_decoded, tf.uint8)
 
     return image, label 
 
@@ -51,6 +56,7 @@ def load_dataset_from_paths(input_paths, label_paths):
     temp_ds = tf.data.Dataset.from_tensor_slices((input_filenames, label_filenames))
 
     ds = temp_ds.map(_parse_function)
+
     return ds 
 
 #split raw tf.data.Dataset into train, val, test sets
